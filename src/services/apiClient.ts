@@ -437,6 +437,7 @@ export class ApiClient {
     name: string;
     googleId?: string;
     avatar?: string;
+    credential?: string;
   }): Promise<{ user: UserAccount; token: string }> {
     const endpoint = '/api/auth/google';
     const res = await fetch(endpoint, {

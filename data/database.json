@@ -27,6 +27,66 @@
         "followingCount": 0,
         "joinedAt": "Entrou em outubro de 2026"
       }
+    },
+    {
+      "id": "usr_g_4854f65a1fc7d013",
+      "email": "usuario.google@gmail.com",
+      "handle": "@usuariogoogle",
+      "name": "Usuário Verificado Google",
+      "isGoogleUser": true,
+      "twoFactorEnabled": true,
+      "twoFactorSecret": "123456",
+      "verified": true,
+      "createdAt": "2026-10-11T23:15:55.713Z",
+      "profile": {
+        "id": "usr_g_4854f65a1fc7d013",
+        "name": "Usuário Verificado Google",
+        "handle": "@usuariogoogle",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+        "avatarType": "image",
+        "cover": "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80",
+        "coverType": "image",
+        "bio": "Conta verificada via Google Workspace / OAuth 2.0.",
+        "customTitle": "Meu Painel",
+        "customSubtitle": "Conectado via Google SSO",
+        "bgColor": "#ffffff",
+        "fontFamily": "Inter",
+        "layoutMode": "masonry",
+        "themeColor": "#2563eb",
+        "followersCount": 1,
+        "followingCount": 1,
+        "joinedAt": "outubro de 2026"
+      }
+    },
+    {
+      "id": "usr_g_98df00445497daf7",
+      "email": "teste.google@gmail.com",
+      "handle": "@testegoogle",
+      "name": "Usuario Teste",
+      "isGoogleUser": true,
+      "twoFactorEnabled": true,
+      "twoFactorSecret": "123456",
+      "verified": true,
+      "createdAt": "2026-10-11T23:22:11.867Z",
+      "profile": {
+        "id": "usr_g_98df00445497daf7",
+        "name": "Usuario Teste",
+        "handle": "@testegoogle",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+        "avatarType": "image",
+        "cover": "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80",
+        "coverType": "image",
+        "bio": "Conta verificada via Google Workspace / OAuth 2.0.",
+        "customTitle": "Meu Painel",
+        "customSubtitle": "Conectado via Google SSO",
+        "bgColor": "#ffffff",
+        "fontFamily": "Inter",
+        "layoutMode": "masonry",
+        "themeColor": "#2563eb",
+        "followersCount": 1,
+        "followingCount": 1,
+        "joinedAt": "outubro de 2026"
+      }
     }
   ],
   "sessions": [
@@ -35,10 +95,34 @@
       "userId": "usr_0e0a1a145a7e692c",
       "createdAt": 1791752185533,
       "expiresAt": 1792356985533
+    },
+    {
+      "token": "d3663f7bbc79fd0e0d7b2a227661918fe7483a046be33a1f9f22cd6d9098fb34",
+      "userId": "usr_g_4854f65a1fc7d013",
+      "createdAt": 1791760555715,
+      "expiresAt": 1794352555715
+    },
+    {
+      "token": "b9604e16441d8c2677a42187646cb6bd0ef44c1b9bab7ea022d51114b1a05e8b",
+      "userId": "usr_g_98df00445497daf7",
+      "createdAt": 1791760931868,
+      "expiresAt": 1794352931868
     }
   ],
   "posts": [],
   "auditLogs": [
+    {
+      "timestamp": "2026-10-11T23:22:11.868Z",
+      "ip": "127.0.0.1",
+      "action": "GOOGLE_SSO",
+      "details": "Autenticado via Google: @testegoogle (teste.google@gmail.com)"
+    },
+    {
+      "timestamp": "2026-10-11T23:15:55.716Z",
+      "ip": "2804:14c:bf48:551c:588:6e21:33d0:3257, 169.254.169.126",
+      "action": "GOOGLE_SSO",
+      "details": "Autenticado via Google: @usuariogoogle (usuario.google@gmail.com)"
+    },
     {
       "timestamp": "2026-10-11T20:56:25.533Z",
       "ip": "127.0.0.1",

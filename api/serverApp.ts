@@ -488,7 +488,24 @@ export function createApiRouter(): express.Router {
 
   // 3. AUTH: Google OAuth 2.0 SSO
   router.post('/auth/google', rateLimiter(30, 60000), (req, res) => {
-    const { email, name, googleId, avatar } = req.body || {};
+    let { email, name, googleId, avatar, credential } = req.body || {};
+
+    // If credential JWT was provided, parse claims if email is not present
+    if (credential && typeof credential === 'string' && (!email || !name)) {
+      try {
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payloadStr = Buffer.from(parts[1], 'base64').toString('utf8');
+          const payload = JSON.parse(payloadStr);
+          email = email || payload.email;
+          name = name || payload.name || payload.given_name;
+          googleId = googleId || payload.sub;
+          avatar = avatar || payload.picture;
+        }
+      } catch (err) {
+        console.warn('[Google SSO] Falha ao decodificar credential JWT:', err);
+      }
+    }
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({ error: 'Dados inválidos recebidos do provedor Google.' });
