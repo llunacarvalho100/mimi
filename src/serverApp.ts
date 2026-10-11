@@ -835,6 +835,87 @@ export function createApiRouter(): express.Router {
     return res.json({ message: 'Publicação excluída com sucesso.' });
   });
 
+  // 12. POSTS: Like / Unlike
+  router.post('/posts/:id/like', authenticateUser, (req, res) => {
+    const postId = req.params.id;
+    const post = database.posts.find((p) => p.id === postId);
+    if (!post) {
+      return res.status(404).json({ error: 'Publicação não encontrada.' });
+    }
+
+    post.likes = Math.max(0, (post.likes || 0) + 1);
+    saveDatabase(database);
+    syncPostToSupabase(post);
+
+    return res.json({ success: true, likes: post.likes, postId: post.id });
+  });
+
+  // 13. POSTS: Add Comment
+  router.post('/posts/:id/comment', authenticateUser, (req, res) => {
+    const user = (req as any).user as StoredUser;
+    const postId = req.params.id;
+    const { text } = req.body || {};
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'Comentário não pode estar vazio.' });
+    }
+
+    const post = database.posts.find((p) => p.id === postId);
+    if (!post) {
+      return res.status(404).json({ error: 'Publicação não encontrada.' });
+    }
+
+    const newComment = {
+      id: `comm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      authorName: user.name,
+      authorAvatar: user.profile.avatar,
+      text: text.trim().slice(0, 500),
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!Array.isArray(post.comments)) {
+      post.comments = [];
+    }
+    post.comments.push(newComment);
+    post.commentsCount = post.comments.length;
+
+    saveDatabase(database);
+    syncPostToSupabase(post);
+
+    return res.status(201).json({ comment: newComment, commentsCount: post.commentsCount });
+  });
+
+  // 14. USERS: Fetch profile by handle
+  router.get('/users/by-handle/:handle', (req, res) => {
+    const rawHandle = req.params.handle || '';
+    const cleanHandle = rawHandle.startsWith('@') ? rawHandle.toLowerCase() : `@${rawHandle.toLowerCase()}`;
+    const user = database.users.find((u) => u.handle.toLowerCase() === cleanHandle);
+    if (!user) {
+      return res.status(404).json({ error: `Usuário '${cleanHandle}' não encontrado.` });
+    }
+
+    return res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        handle: user.handle,
+        name: user.name,
+        profile: user.profile,
+        verified: user.verified,
+        createdAt: user.createdAt,
+      },
+    });
+  });
+
+  // 15. API 404 Fallback: returns JSON strictly for unmatched API endpoints
+  router.use((req, res) => {
+    res.status(404).json({
+      error: `Rota '${req.originalUrl || req.url}' não encontrada na API.`,
+      status: 404,
+      service: 'PinTweet Enterprise API',
+    });
+  });
+
   return router;
 }
 
@@ -859,9 +940,23 @@ export function createApp(): express.Express {
 
   const apiRouter = createApiRouter();
 
-  // Mount under both '/api' and '/' to ensure 100% route match on Vercel rewrites!
+  // Mount API router strictly under '/api'
   app.use('/api', apiRouter);
-  app.use('/', apiRouter);
+
+  // Global Error Handler returning strictly JSON for /api errors
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      return next(err);
+    }
+    console.error('[API Unhandled Error]:', err);
+    if (req.path.startsWith('/api')) {
+      return res.status(err.status || 500).json({
+        error: err.message || 'Erro interno no servidor de API.',
+        status: err.status || 500,
+      });
+    }
+    next(err);
+  });
 
   return app;
 }
