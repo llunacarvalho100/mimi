@@ -322,6 +322,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <div className="mb-2">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
               <span>{profile.name}</span>
+              {profile.verified && (
+                <span className="inline-flex items-center text-blue-500" title="Perfil Verificado">
+                  <Check className="w-3.5 h-3.5 p-0.5 rounded-full bg-blue-500 text-white font-bold" />
+                </span>
+              )}
             </h1>
             <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
               {profile.handle}
@@ -336,20 +341,27 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           )}
 
           {/* Metadata Row: Location, Birthday, Join Date */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400 mb-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400 mb-2">
             <span className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-rose-500" />
-              <span>Guarulhos, Brasil</span>
-            </span>
-
-            <span className="flex items-center gap-1">
-              <Cake className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Nasceu em 5 de junho</span>
+              <span>Brasil</span>
             </span>
 
             <span className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>Participa desde 2024</span>
+              <span>{profile.joinedAt || 'Entrou em 2026'}</span>
+            </span>
+          </div>
+
+          {/* Real Followers and Following (Twitter/X style) */}
+          <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 mb-3">
+            <span>
+              <strong className="text-slate-900 dark:text-white font-bold">{profile.followingCount ?? 0}</strong>{' '}
+              <span className="text-slate-500">Seguindo</span>
+            </span>
+            <span>
+              <strong className="text-slate-900 dark:text-white font-bold">{profile.followersCount ?? 0}</strong>{' '}
+              <span className="text-slate-500">Seguidores</span>
             </span>
           </div>
 

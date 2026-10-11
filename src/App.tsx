@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   INITIAL_PROFILE,
-  INITIAL_ACCOUNTS,
   INITIAL_ALBUMS,
   INITIAL_STICKY_NOTES,
   INITIAL_POSTS,
@@ -18,6 +17,7 @@ import {
   AppNotification,
   MediaEmbed,
 } from './types';
+import { ApiClient } from './services/apiClient';
 import { FloatingParticles } from './components/FloatingParticles';
 import { Sidebar } from './components/Sidebar';
 import { TopSearchBar } from './components/TopSearchBar';
@@ -33,6 +33,8 @@ import { WeatherWidgetModal } from './components/WeatherWidgetModal';
 import { InteractivePinModal } from './components/InteractivePinModal';
 import { WidgetsDrawer } from './components/WidgetsDrawer';
 import { AuthModal } from './components/AuthModal';
+import { AuthLandingView } from './components/AuthLandingView';
+import { ThankYouPage } from './components/ThankYouPage';
 import { QuickNavigationPopup } from './components/QuickNavigationPopup';
 import { Breadcrumbs } from './components/Breadcrumbs';
 import { NotFoundPage } from './components/NotFoundPage';
@@ -41,75 +43,47 @@ import { PrivacyTermsPage } from './components/PrivacyTermsPage';
 import { AlbumDetailPage } from './components/AlbumDetailPage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { SecurityModal } from './security';
+import { Plus, LogIn } from 'lucide-react';
 
 export default function App() {
-  // Dark mode (default to true to match the reference screenshot)
+  // Dark mode
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('melin_darkmode');
     return saved !== null ? JSON.parse(saved) : true;
   });
 
-  // Accounts & Authentication State
-  const [accounts, setAccounts] = useState<UserAccount[]>(() => {
-    const saved = localStorage.getItem('melin_accounts');
-    const migrated = localStorage.getItem('melin_twitter_font_migrated');
-    if (saved) {
-      try {
-        const parsed: UserAccount[] = JSON.parse(saved);
-        if (!migrated) {
-          localStorage.setItem('melin_twitter_font_migrated', 'true');
-          return parsed.map((acc) => ({
-            ...acc,
-            profile: {
-              ...acc.profile,
-              fontFamily:
-                acc.profile.fontFamily === 'font-caveat'
-                  ? 'font-twitter'
-                  : acc.profile.fontFamily || 'font-twitter',
-            },
-          }));
-        }
-        return parsed;
-      } catch {
-        // fallback
-      }
-    }
-    return INITIAL_ACCOUNTS;
-  });
-
+  // Current authenticated user (Clean slate: never forced auto-login to mock bots)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    const saved = localStorage.getItem('melin_session');
-    const migrated = localStorage.getItem('melin_twitter_font_migrated_session');
-    if (saved) {
+    const token = ApiClient.getToken();
+    if (!token) return null;
+    const cached = localStorage.getItem('pintweet_active_user');
+    if (cached) {
       try {
-        const parsed: UserAccount = JSON.parse(saved);
-        if (!migrated) {
-          localStorage.setItem('melin_twitter_font_migrated_session', 'true');
-          return {
-            ...parsed,
-            profile: {
-              ...parsed.profile,
-              fontFamily:
-                parsed.profile.fontFamily === 'font-caveat'
-                  ? 'font-twitter'
-                  : parsed.profile.fontFamily || 'font-twitter',
-            },
-          };
-        }
-        return parsed;
+        return JSON.parse(cached);
       } catch {
-        // fallback
+        return null;
       }
     }
-    return INITIAL_ACCOUNTS[0] || null;
+    return null;
   });
 
+  // Active Profile (or clean fallback if visitor)
   const activeProfile: UserProfile = currentUser?.profile || INITIAL_PROFILE;
 
-  // View: 'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'albumDetail'
+  // View state: 'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'albumDetail' | 'thankYou' | 'landing'
   const [currentView, setCurrentView] = useState<
-    'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'albumDetail'
-  >('profile');
+    'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'albumDetail' | 'thankYou' | 'landing'
+  >(() => {
+    const hash = window.location.hash;
+    if (hash === '#faq') return 'faq';
+    if (hash === '#termos' || hash === '#privacidade') return 'privacy';
+    if (hash === '#obrigado') return 'thankYou';
+    if (hash === '#404') return 'notFound';
+    if (hash === '#feed') return 'community';
+    if (hash === '#perfil') return 'profile';
+    // If not authenticated, root route goes to landing/login
+    return ApiClient.getToken() ? 'community' : 'landing';
+  });
 
   // Profile Active Tab: 'posts' | 'mural' | 'albums' | 'hobby' | 'widgets'
   const [activeProfileTab, setActiveProfileTab] = useState<'posts' | 'mural' | 'albums' | 'hobby' | 'widgets'>('posts');
@@ -209,7 +183,72 @@ export default function App() {
     }, 3200);
   };
 
-  // Sync to localStorage
+  // 1. Core Architecture: Purge Ghost Bots & Validate Session on Mount
+  useEffect(() => {
+    ApiClient.purgeGhostCacheAndBots();
+
+    ApiClient.getMe().then((authenticatedUser) => {
+      if (authenticatedUser) {
+        setCurrentUser(authenticatedUser);
+      } else {
+        setCurrentUser(null);
+        if (!window.location.hash || window.location.hash === '#entrar') {
+          setCurrentView('landing');
+        }
+      }
+    });
+
+    // Also fetch real posts from backend
+    ApiClient.getPosts().then((backendPosts) => {
+      if (backendPosts && backendPosts.length > 0) {
+        setPosts(backendPosts);
+      }
+    });
+  }, []);
+
+  // 2. Dynamic SEO Document Title
+  useEffect(() => {
+    let title = 'PinTweet • Rede Social Híbrida & Mural Afetivo';
+    if (currentView === 'community') {
+      title = 'Feed da Comunidade • PinTweet';
+    } else if (currentView === 'profile') {
+      title = `${activeProfile.name} (${activeProfile.handle}) • PinTweet`;
+    } else if (currentView === 'faq') {
+      title = 'Perguntas Frequentes (FAQ) • PinTweet';
+    } else if (currentView === 'privacy') {
+      title = 'Privacidade, LGPD & Termos • PinTweet';
+    } else if (currentView === 'thankYou') {
+      title = 'Obrigado! Confirmação • PinTweet';
+    } else if (currentView === 'notFound') {
+      title = 'Página Não Encontrada (404) • PinTweet';
+    } else if (currentView === 'landing') {
+      title = 'Bem-vindo ao PinTweet • Rede Social Autêntica';
+    }
+    document.title = title;
+  }, [currentView, activeProfile.name, activeProfile.handle]);
+
+  // 3. Friendly URL Hash Navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash === '#faq') setCurrentView('faq');
+      else if (hash === '#termos' || hash === '#privacidade') setCurrentView('privacy');
+      else if (hash === '#obrigado') setCurrentView('thankYou');
+      else if (hash === '#404') setCurrentView('notFound');
+      else if (hash === '#feed') setCurrentView('community');
+      else if (hash === '#perfil') setCurrentView('profile');
+      else if (hash === '#entrar') {
+        if (!currentUser) {
+          setCurrentView('landing');
+          setAuthModalOpen(true);
+        }
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [currentUser]);
+
+  // Sync dark mode
   useEffect(() => {
     localStorage.setItem('melin_darkmode', JSON.stringify(isDarkMode));
     if (isDarkMode) {
@@ -219,26 +258,7 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('melin_accounts', JSON.stringify(accounts));
-    } catch (err) {
-      console.warn('Erro ao salvar contas no localStorage:', err);
-    }
-  }, [accounts]);
-
-  useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem('melin_session', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('melin_session');
-      }
-    } catch (err) {
-      console.warn('Erro ao salvar sessão no localStorage:', err);
-    }
-  }, [currentUser]);
-
+  // Persistent storage synchronizations
   useEffect(() => {
     try {
       localStorage.setItem('melin_albums', JSON.stringify(albums));
@@ -279,9 +299,12 @@ export default function App() {
     }
   }, [weather]);
 
-  // Update Profile
-  const handleUpdateProfile = (updates: Partial<UserProfile>) => {
-    if (!currentUser) return;
+  // Update Profile with Server Persistence & Multitenancy
+  const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
+    if (!currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
     const updatedProfile: UserProfile = { ...currentUser.profile, ...updates };
     const updatedUser: UserAccount = {
       ...currentUser,
@@ -291,27 +314,29 @@ export default function App() {
     };
 
     setCurrentUser(updatedUser);
-    setAccounts((prev) =>
-      prev.map((acc) => (acc.id === updatedUser.id ? updatedUser : acc))
-    );
-    showToast('Perfil atualizado!');
+    showToast('Perfil atualizado com segurança!');
+
+    try {
+      await ApiClient.updateProfile(updates);
+    } catch (err: any) {
+      console.warn('Erro ao sincronizar com backend:', err);
+    }
   };
 
   // Auth Handlers
-  const handleLogin = (account: UserAccount) => {
+  const handleLoginSuccess = (account: UserAccount) => {
     setCurrentUser(account);
-    showToast(`Bem-vindo(a) de volta, ${account.name}!`);
+    setCurrentView('thankYou');
+    window.location.hash = '#obrigado';
+    showToast(`Bem-vindo(a), ${account.name}!`);
   };
 
-  const handleRegister = (newAccount: UserAccount) => {
-    setAccounts((prev) => [...prev, newAccount]);
-    setCurrentUser(newAccount);
-    showToast(`Conta ${newAccount.handle} criada no Melin!`);
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await ApiClient.logout();
     setCurrentUser(null);
-    showToast('Você saiu da sua conta.');
+    setCurrentView('landing');
+    window.location.hash = '';
+    showToast('Você encerrou sua sessão com segurança.');
   };
 
   // Quick Navigation Handler
@@ -320,12 +345,22 @@ export default function App() {
     tab?: 'posts' | 'mural' | 'albums' | 'hobby' | 'widgets';
     action?: 'create_post' | 'create_album' | 'write_note';
   }) => {
+    if (!currentUser && dest.view === 'profile') {
+      setAuthModalOpen(true);
+      showToast('Faça login ou crie sua conta para acessar seu perfil!');
+      return;
+    }
+
     setCurrentView(dest.view);
     if (dest.tab) {
       setActiveProfileTab(dest.tab);
     }
     if (dest.action === 'create_post') {
-      setCreateModalOpen(true);
+      if (!currentUser) {
+        setAuthModalOpen(true);
+      } else {
+        setCreateModalOpen(true);
+      }
     }
     showToast(
       dest.view === 'community'
@@ -411,7 +446,7 @@ export default function App() {
   };
 
   // Posts
-  const handleCreatePost = (
+  const handleCreatePost = async (
     postData: Omit<PinOrPost, 'id' | 'createdAt' | 'likes' | 'reposts' | 'commentsCount'>
   ) => {
     const newPost: PinOrPost = {
@@ -444,53 +479,57 @@ export default function App() {
       read: false,
     };
     setNotifications((prev) => [newNotif, ...prev]);
-    showToast('Publicação compartilhada!');
+    showToast('Publicação compartilhada com sucesso!');
+
+    // Persist to backend if logged in
+    if (currentUser) {
+      try {
+        await ApiClient.createPost({
+          content: newPost.content,
+          title: newPost.title,
+          imageUrl: newPost.imageUrl,
+          videoUrl: newPost.videoUrl,
+          mediaType: newPost.mediaType,
+          tags: newPost.tags,
+        });
+      } catch (err) {
+        console.warn('Erro ao salvar post no backend:', err);
+      }
+    }
   };
 
   const handleLikePost = (postId: string) => {
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
-        const newLiked = !p.likedByMe;
+        const willLike = !p.likedByMe;
         return {
           ...p,
-          likedByMe: newLiked,
-          likes: newLiked ? p.likes + 1 : Math.max(0, p.likes - 1),
+          likedByMe: willLike,
+          likes: willLike ? p.likes + 1 : Math.max(0, p.likes - 1),
         };
       })
     );
-
-    if (activeDetailPost && activeDetailPost.id === postId) {
-      setActiveDetailPost((prev) =>
-        prev
-          ? {
-              ...prev,
-              likedByMe: !prev.likedByMe,
-              likes: !prev.likedByMe ? prev.likes + 1 : Math.max(0, prev.likes - 1),
-            }
-          : null
-      );
-    }
   };
 
   const handleRepostPost = (postId: string) => {
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
-        const newReposted = !p.repostedByMe;
+        const willRepost = !p.repostedByMe;
         return {
           ...p,
-          repostedByMe: newReposted,
-          reposts: newReposted ? p.reposts + 1 : Math.max(0, p.reposts - 1),
+          repostedByMe: willRepost,
+          reposts: willRepost ? p.reposts + 1 : Math.max(0, p.reposts - 1),
         };
       })
     );
-    showToast('Publicação salva!');
+    showToast('Publicação republicada no seu mural!');
   };
 
   const handleAddComment = (postId: string, text: string) => {
     const newComment = {
-      id: `comment-${Date.now()}`,
+      id: `comm-${Date.now()}`,
       authorName: activeProfile.name,
       authorAvatar: activeProfile.avatar,
       text,
@@ -500,22 +539,21 @@ export default function App() {
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
-        const currentComments = p.comments || [];
         return {
           ...p,
-          commentsCount: (p.commentsCount || 0) + 1,
-          comments: [...currentComments, newComment],
+          commentsCount: p.commentsCount + 1,
+          comments: [...(p.comments || []), newComment],
         };
       })
     );
 
     if (activeDetailPost && activeDetailPost.id === postId) {
-      setActiveDetailPost((prev) =>
-        prev
+      setActiveDetailPost((curr) =>
+        curr
           ? {
-              ...prev,
-              commentsCount: (prev.commentsCount || 0) + 1,
-              comments: [...(prev.comments || []), newComment],
+              ...curr,
+              commentsCount: curr.commentsCount + 1,
+              comments: [...(curr.comments || []), newComment],
             }
           : null
       );
@@ -540,7 +578,7 @@ export default function App() {
     setNotificationsModalOpen(false);
   };
 
-  // Filter posts based on search query or selected album (supports scale testing mode)
+  // Filter posts based on search query or selected album
   const allActivePosts = isScaleInjected ? [...posts, ...scalePosts] : posts;
 
   const displayedPosts = allActivePosts.filter((p) => {
@@ -570,17 +608,30 @@ export default function App() {
       {/* Background Falling Seasonal Weather Emojis */}
       <FloatingParticles weather={weather} />
 
-      {/* LEFT SIDEBAR matching reference screenshot */}
+      {/* LEFT SIDEBAR */}
       <Sidebar
         currentUser={currentUser}
         activeProfile={activeProfile}
         currentView={currentView}
-        onSelectView={setCurrentView}
+        onSelectView={(v) => {
+          if (!currentUser && v === 'profile') {
+            setAuthModalOpen(true);
+            showToast('Faça login ou registre-se para abrir seu perfil!');
+            return;
+          }
+          setCurrentView(v);
+        }}
         activeProfileTab={activeProfileTab}
         onSelectProfileTab={setActiveProfileTab}
-        onOpenCreateModal={() => setCreateModalOpen(true)}
+        onOpenCreateModal={() => {
+          if (!currentUser) setAuthModalOpen(true);
+          else setCreateModalOpen(true);
+        }}
         onOpenAuthModal={() => setAuthModalOpen(true)}
-        onOpenEditProfile={() => setAuthModalOpen(true)}
+        onOpenEditProfile={() => {
+          if (!currentUser) setAuthModalOpen(true);
+          else setAuthModalOpen(true);
+        }}
         onOpenSecurityModal={() => setSecurityModalOpen(true)}
         onLogout={handleLogout}
         isDarkMode={isDarkMode}
@@ -592,7 +643,13 @@ export default function App() {
         {/* Top Search & Discrete Header Switcher */}
         <TopSearchBar
           currentView={currentView}
-          onSelectView={setCurrentView}
+          onSelectView={(v) => {
+            if (!currentUser && v === 'profile') {
+              setAuthModalOpen(true);
+              return;
+            }
+            setCurrentView(v);
+          }}
           weather={weather}
           onOpenWeatherModal={() => setWeatherModalOpen(true)}
           notifications={notifications}
@@ -600,12 +657,35 @@ export default function App() {
           onOpenEditProfile={() => setAuthModalOpen(true)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onSelectSearchedUser={(user) => {
+            showToast(`Visualizando perfil de ${user.handle}`);
+            setCurrentView('community');
+          }}
         />
+
+        {/* VIEW 0: LANDING & LOGIN (SE DESLOGADO NA ROTA RAIZ) */}
+        {currentView === 'landing' && (
+          <AuthLandingView
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onExplorePublicFeed={() => {
+              setCurrentView('community');
+              window.location.hash = '#feed';
+            }}
+            onOpenFAQ={() => {
+              setCurrentView('faq');
+              window.location.hash = '#faq';
+            }}
+            onOpenLegal={() => {
+              setCurrentView('privacy');
+              window.location.hash = '#termos';
+            }}
+          />
+        )}
 
         {/* VIEW 1: MEU PERFIL PRÓPRIO (E SUB-PÁGINA DE ÁLBUM) */}
         {currentView === 'profile' && (
           <div className="p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full animate-in fade-in duration-150">
-            {/* SUB-PÁGINA DEDICADA DE ÁLBUM (Não sobrecarrega a página inicial) */}
+            {/* SUB-PÁGINA DEDICADA DE ÁLBUM */}
             {selectedAlbumId && albums.find((a) => a.id === selectedAlbumId) ? (
               <AlbumDetailPage
                 album={albums.find((a) => a.id === selectedAlbumId)!}
@@ -619,7 +699,7 @@ export default function App() {
               />
             ) : (
               <>
-                {/* Breadcrumbs de Navegação Limpa */}
+                {/* Breadcrumbs de Navegação */}
                 <Breadcrumbs
                   items={[
                     {
@@ -723,7 +803,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 2: FEED COMUM COM OUTRAS PESSOAS */}
+        {/* VIEW 2: FEED COMUM COM A COMUNIDADE */}
         {currentView === 'community' && (
           <div className="p-4 sm:p-6 max-w-2xl mx-auto w-full animate-in fade-in duration-150">
             <Breadcrumbs
@@ -737,7 +817,10 @@ export default function App() {
               onLikePost={handleLikePost}
               onRepostPost={handleRepostPost}
               onOpenPinModal={setActiveDetailPost}
-              onOpenCreatePost={() => setCreateModalOpen(true)}
+              onOpenCreatePost={() => {
+                if (!currentUser) setAuthModalOpen(true);
+                else setCreateModalOpen(true);
+              }}
             />
           </div>
         )}
@@ -745,23 +828,39 @@ export default function App() {
         {/* VIEW 3: CENTRAL DE DÚVIDAS & FAQ (5 PERGUNTAS) */}
         {currentView === 'faq' && (
           <FaqPage
-            onBack={() => setCurrentView('profile')}
+            onBack={() => setCurrentView(currentUser ? 'community' : 'landing')}
             onGoProfile={() => setCurrentView('profile')}
           />
         )}
 
-        {/* VIEW 4: POLÍTICA DE PRIVACIDADE, TERMOS & COOKIES */}
+        {/* VIEW 4: POLÍTICA DE PRIVACIDADE, TERMOS & COOKIES & REEMBOLSO */}
         {currentView === 'privacy' && (
           <PrivacyTermsPage
-            onBack={() => setCurrentView('profile')}
+            onBack={() => setCurrentView(currentUser ? 'community' : 'landing')}
             onGoProfile={() => setCurrentView('profile')}
           />
         )}
 
-        {/* VIEW 5: PÁGINA DE ERRO 404 AMIGÁVEL */}
+        {/* VIEW 5: PÁGINA DE OBRIGADO (CONVERSÃO & FEEDBACK) */}
+        {currentView === 'thankYou' && (
+          <ThankYouPage
+            userName={currentUser?.name}
+            userHandle={currentUser?.handle}
+            onGoHome={() => {
+              setCurrentView('community');
+              window.location.hash = '#feed';
+            }}
+            onGoProfile={() => {
+              setCurrentView('profile');
+              window.location.hash = '#perfil';
+            }}
+          />
+        )}
+
+        {/* VIEW 6: PÁGINA DE ERRO 404 AMIGÁVEL */}
         {currentView === 'notFound' && (
           <NotFoundPage
-            onGoHome={() => setCurrentView('profile')}
+            onGoHome={() => setCurrentView(currentUser ? 'profile' : 'landing')}
             onGoCommunity={() => setCurrentView('community')}
           />
         )}
@@ -772,6 +871,28 @@ export default function App() {
         onNavigate={handleQuickNavigate}
         onOpenSecurity={() => setSecurityModalOpen(true)}
       />
+
+      {/* Fixed Mobile CTA Button for fast posting or signing up */}
+      <div className="sm:hidden fixed bottom-5 right-5 z-40">
+        {currentUser ? (
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="w-12 h-12 rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white shadow-xl shadow-rose-500/30 flex items-center justify-center cursor-pointer"
+            aria-label="Criar nova publicação"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        ) : (
+          <button
+            onClick={() => setAuthModalOpen(true)}
+            className="px-4 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white text-xs font-bold shadow-xl shadow-rose-500/30 flex items-center gap-1.5 cursor-pointer"
+            aria-label="Entrar ou criar conta"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Entrar</span>
+          </button>
+        )}
+      </div>
 
       {/* Cookie & LocalStorage Consent Banner */}
       <CookieConsentBanner onOpenPrivacy={() => setCurrentView('privacy')} />
@@ -814,9 +935,7 @@ export default function App() {
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        accounts={accounts}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       <SecurityModal

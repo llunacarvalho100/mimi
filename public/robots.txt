@@ -1,6 +1,10 @@
-# robots.txt for Melin App
+# robots.txt for PinTweet Enterprise
 User-agent: *
 Allow: /
 
+# Disallow internal security lab and sensitive routes
+Disallow: /api/
+Disallow: /api/auth/
+
 # Sitemap
-Sitemap: https://melin.app/sitemap.xml
+Sitemap: https://pintweet.app/sitemap.xml

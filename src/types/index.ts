@@ -27,6 +27,10 @@ export interface UserProfile {
   themeColor: string;
   relationshipDate?: string;
   pinnedQuote?: string;
+  followersCount?: number;
+  followingCount?: number;
+  joinedAt?: string;
+  verified?: boolean;
 }
 
 export interface UserAccount {
@@ -36,6 +40,11 @@ export interface UserAccount {
   name: string;
   password?: string;
   profile: UserProfile;
+  isGoogleUser?: boolean;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  verified?: boolean;
+  joinedAt?: string;
 }
 
 export interface MediaEmbed {

@@ -23,8 +23,8 @@ import { UserAvatar } from './UserAvatar';
 interface SidebarProps {
   currentUser: UserAccount | null;
   activeProfile: UserProfile;
-  currentView: 'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'albumDetail';
-  onSelectView: (view: 'profile' | 'community' | 'faq' | 'privacy' | 'notFound') => void;
+  currentView: 'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'albumDetail' | 'thankYou' | 'landing';
+  onSelectView: (view: 'profile' | 'community' | 'faq' | 'privacy' | 'notFound' | 'thankYou' | 'landing') => void;
   activeProfileTab: 'posts' | 'mural' | 'albums' | 'hobby' | 'widgets';
   onSelectProfileTab: (tab: 'posts' | 'mural' | 'albums' | 'hobby' | 'widgets') => void;
   onOpenCreateModal: () => void;

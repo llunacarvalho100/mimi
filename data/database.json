@@ -1,0 +1,49 @@
+{
+  "users": [
+    {
+      "id": "usr_0e0a1a145a7e692c",
+      "email": "lucas@exemplo.com",
+      "handle": "@lucas",
+      "name": "Lucas Cardoso",
+      "passwordHash": "930a77901de639be3d2d68b34d046668c65edbc2ef9b0f0823e5920f00b24995",
+      "isGoogleUser": false,
+      "twoFactorEnabled": false,
+      "verified": false,
+      "createdAt": "2026-10-11T20:56:25.520Z",
+      "profile": {
+        "id": "prf_1ca1e234ab326502",
+        "name": "Lucas Cardoso",
+        "handle": "@lucas",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+        "cover": "https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=1400&q=80",
+        "bio": "Membro autêntico no PinTweet ✨",
+        "customTitle": "Meu Espaço Afetivo ✨",
+        "customSubtitle": "Colecionando memórias e inspirações reais.",
+        "bgColor": "#ffffff",
+        "fontFamily": "font-twitter",
+        "layoutMode": "mosaic",
+        "themeColor": "#f43f5e",
+        "followersCount": 0,
+        "followingCount": 0,
+        "joinedAt": "Entrou em outubro de 2026"
+      }
+    }
+  ],
+  "sessions": [
+    {
+      "token": "325823421e698b239a0bdb6b52f4b81c30cb4a6f683e628f0be9ab24a4c138f9",
+      "userId": "usr_0e0a1a145a7e692c",
+      "createdAt": 1791752185533,
+      "expiresAt": 1792356985533
+    }
+  ],
+  "posts": [],
+  "auditLogs": [
+    {
+      "timestamp": "2026-10-11T20:56:25.533Z",
+      "ip": "127.0.0.1",
+      "action": "REGISTER_SUCCESS",
+      "details": "Novo usuário cadastrado: @lucas"
+    }
+  ]
+}

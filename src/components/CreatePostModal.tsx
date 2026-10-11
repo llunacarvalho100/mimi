@@ -43,6 +43,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedMedia, setUploadedMedia] = useState<StoredMedia | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +57,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
     try {
       setIsUploading(true);
+      setUploadError(null);
       // Stored locally in IndexedDB (0 Tokens Cost!)
       const stored = await saveMediaFile(file);
       setUploadedMedia(stored);
@@ -71,7 +74,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
         setTitle(file.name.replace(/\.[^/.]+$/, ''));
       }
     } catch (err: any) {
-      alert(err.message || 'Erro ao processar arquivo');
+      setUploadError(err.message || 'Erro ao processar arquivo');
     } finally {
       setIsUploading(false);
     }
@@ -111,30 +114,35 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       .map((t) => t.trim().replace(/^#/, ''))
       .filter(Boolean);
 
-    onCreatePost({
-      authorId: activeProfile.id,
-      authorName: activeProfile.name,
-      authorHandle: activeProfile.handle,
-      authorAvatar: activeProfile.avatar,
-      title: title.trim() || undefined,
-      content: content.trim(),
-      imageUrl: imageUrl.trim() || undefined,
-      videoUrl: videoUrl.trim() || undefined,
-      mediaType: videoUrl ? 'video' : imageUrl ? 'image' : parsedMedia ? 'embed' : undefined,
-      boardId: chosenAlbum?.id,
-      boardName: chosenAlbum?.name,
-      mediaEmbed: parsedMedia || undefined,
-      tags: tagsArray,
-      likedByMe: false,
-    });
+    setIsSubmitting(true);
+    try {
+      onCreatePost({
+        authorId: activeProfile.id,
+        authorName: activeProfile.name,
+        authorHandle: activeProfile.handle,
+        authorAvatar: activeProfile.avatar,
+        title: title.trim() || undefined,
+        content: content.trim(),
+        imageUrl: imageUrl.trim() || undefined,
+        videoUrl: videoUrl.trim() || undefined,
+        mediaType: videoUrl ? 'video' : imageUrl ? 'image' : parsedMedia ? 'embed' : undefined,
+        boardId: chosenAlbum?.id,
+        boardName: chosenAlbum?.name,
+        mediaEmbed: parsedMedia || undefined,
+        tags: tagsArray,
+        likedByMe: false,
+      });
 
-    confetti({
-      particleCount: 25,
-      spread: 60,
-      origin: { y: 0.6 },
-    });
+      confetti({
+        particleCount: 25,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
 
-    onClose();
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -353,6 +361,12 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             </div>
           </div>
 
+          {uploadError && (
+            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs">
+              {uploadError}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
@@ -363,9 +377,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-xl shadow-xs cursor-pointer"
+              disabled={isSubmitting || isUploading}
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-xl shadow-xs cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
             >
-              Publicar
+              {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
+              <span>{isSubmitting ? 'Publicando...' : 'Publicar'}</span>
             </button>
           </div>
         </form>
