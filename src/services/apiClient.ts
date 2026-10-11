@@ -21,15 +21,71 @@ export class ApiClient {
   private static token: string | null = null;
 
   /**
+   * Safely process fetch response with strict Content-Type and status validation.
+   * Prevents syntax errors when receiving HTML error pages (e.g. Vercel 404).
+   */
+  private static async handleResponse<T>(res: Response, fallbackError: string): Promise<T> {
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+
+    if (!res.ok) {
+      let errorMessage = fallbackError;
+
+      if (isJson) {
+        try {
+          const errData = await res.json();
+          errorMessage = errData.error || errData.message || fallbackError;
+        } catch {
+          // json parsing failed
+        }
+      } else {
+        const text = await res.text();
+        if (res.status === 404) {
+          errorMessage = 'Rota de API não encontrada (HTTP 404). Se você está na Vercel, verifique se a Serverless Function /api está ativa e se as Variáveis de Ambiente foram preenchidas.';
+        } else if (res.status === 500) {
+          errorMessage = 'Erro interno do servidor (HTTP 500). Verifique as configurações de banco de dados (Supabase/PostgreSQL) na Vercel.';
+        } else if (res.status === 401 || res.status === 403) {
+          errorMessage = 'Sessão expirada ou não autorizada. Por favor, faça login novamente.';
+        } else if (text && text.length < 160 && !text.includes('<!DOCTYPE') && !text.includes('<html')) {
+          errorMessage = text.trim();
+        } else {
+          errorMessage = `${fallbackError} (Status HTTP ${res.status})`;
+        }
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    // Response is OK (res.ok is true)
+    if (!isJson) {
+      const text = await res.text();
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        throw new Error(
+          'O servidor retornou HTML em vez de JSON. Certifique-se de que a rota /api está configurada na Vercel.'
+        );
+      }
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        throw new Error('Resposta do servidor em formato inválido.');
+      }
+    }
+
+    try {
+      return (await res.json()) as T;
+    } catch (err: any) {
+      throw new Error(`Falha ao decodificar resposta JSON: ${err.message || 'formato inválido'}`);
+    }
+  }
+
+  /**
    * Eradicates any ghost bots, fake mock profiles and expired sessions on startup
    */
   public static purgeGhostCacheAndBots(): void {
     try {
-      // 1. Purge legacy mock storage keys
       localStorage.removeItem('melin_twitter_font_migrated');
       localStorage.removeItem('melin_twitter_font_migrated_session');
 
-      // 2. Inspect melin_accounts for mock bots
       const oldAccounts = localStorage.getItem('melin_accounts');
       if (oldAccounts) {
         try {
@@ -47,7 +103,6 @@ export class ApiClient {
         }
       }
 
-      // 3. Inspect melin_session
       const oldSession = localStorage.getItem('melin_session');
       if (oldSession) {
         try {
@@ -60,7 +115,6 @@ export class ApiClient {
         }
       }
 
-      // 4. Initialize session token if valid
       const savedToken = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
       if (savedToken) {
         this.token = savedToken;
@@ -119,10 +173,10 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
 
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Falha ao registrar conta.');
-    }
+    const json = await this.handleResponse<{ user: UserAccount; token: string }>(
+      res,
+      'Falha ao registrar conta.'
+    );
 
     this.setToken(json.token, true);
     localStorage.setItem(USER_KEY, JSON.stringify(json.user));
@@ -143,17 +197,22 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
 
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Credenciais inválidas.');
-    }
+    const json = await this.handleResponse<{
+      user?: UserAccount;
+      token?: string;
+      requires2FA?: boolean;
+      message?: string;
+    }>(res, 'Credenciais inválidas.');
 
     if (json.requires2FA) {
       return { requires2FA: true, message: json.message };
     }
 
-    this.setToken(json.token, true);
-    localStorage.setItem(USER_KEY, JSON.stringify(json.user));
+    if (json.token && json.user) {
+      this.setToken(json.token, true);
+      localStorage.setItem(USER_KEY, JSON.stringify(json.user));
+    }
+
     return json;
   }
 
@@ -172,10 +231,10 @@ export class ApiClient {
       body: JSON.stringify(profile),
     });
 
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Falha na autenticação via Google.');
-    }
+    const json = await this.handleResponse<{ user: UserAccount; token: string }>(
+      res,
+      'Falha na autenticação via Google.'
+    );
 
     this.setToken(json.token, true);
     localStorage.setItem(USER_KEY, JSON.stringify(json.user));
@@ -199,9 +258,17 @@ export class ApiClient {
         return null;
       }
 
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        return null;
+      }
+
       const json = await res.json();
-      localStorage.setItem(USER_KEY, JSON.stringify(json.user));
-      return json.user;
+      if (json && json.user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(json.user));
+        return json.user;
+      }
+      return null;
     } catch {
       // Offline fallback: check cached active user if valid
       const cached = localStorage.getItem(USER_KEY);
@@ -241,10 +308,12 @@ export class ApiClient {
       headers: this.getHeaders(),
       body: JSON.stringify({ enable }),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Erro ao alterar 2FA.');
-    }
+
+    const json = await this.handleResponse<{ twoFactorEnabled: boolean }>(
+      res,
+      'Erro ao alterar 2FA.'
+    );
+
     return json.twoFactorEnabled;
   }
 
@@ -264,6 +333,8 @@ export class ApiClient {
     try {
       const res = await fetch(`/api/users/search?q=${encodeURIComponent(query.trim())}`);
       if (!res.ok) return [];
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) return [];
       const json = await res.json();
       return json.users || [];
     } catch {
@@ -281,10 +352,10 @@ export class ApiClient {
       body: JSON.stringify(updates),
     });
 
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Erro ao atualizar perfil.');
-    }
+    const json = await this.handleResponse<{ user: UserAccount }>(
+      res,
+      'Erro ao atualizar perfil.'
+    );
 
     localStorage.setItem(USER_KEY, JSON.stringify(json.user));
     return json.user;
@@ -329,12 +400,11 @@ export class ApiClient {
       }),
     });
 
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Falha no upload do arquivo.');
-    }
-
-    return json;
+    return await this.handleResponse<{
+      url: string;
+      mimeType: string;
+      sizeBytes: number;
+    }>(res, 'Falha no upload do arquivo.');
   }
 
   /**
@@ -345,6 +415,8 @@ export class ApiClient {
       const url = handle ? `/api/posts?handle=${encodeURIComponent(handle)}` : '/api/posts';
       const res = await fetch(url);
       if (!res.ok) return [];
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) return [];
       const json = await res.json();
       return json.posts || [];
     } catch {
@@ -369,10 +441,10 @@ export class ApiClient {
       body: JSON.stringify(post),
     });
 
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'Erro ao publicar.');
-    }
+    const json = await this.handleResponse<{ post: PinOrPost }>(
+      res,
+      'Erro ao publicar.'
+    );
 
     return json.post;
   }
@@ -386,9 +458,9 @@ export class ApiClient {
       headers: this.getHeaders(),
     });
 
-    if (!res.ok) {
-      const json = await res.json();
-      throw new Error(json.error || 'Erro ao excluir publicação.');
-    }
+    await this.handleResponse<{ message: string }>(
+      res,
+      'Erro ao excluir publicação.'
+    );
   }
 }
