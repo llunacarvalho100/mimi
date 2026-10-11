@@ -1,0 +1,6 @@
+{
+  "name": "PinTweet - Rede Social Híbrida & Mural Afetivo",
+  "description": "Rede social híbrida unindo Twitter/X e Pinterest com perfis totalmente customizáveis, mural colaborativo de lembretes, clima e estações em tempo real com emojis dinâmicos, player musical e widgets de interesse.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

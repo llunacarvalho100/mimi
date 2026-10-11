@@ -1,0 +1,6 @@
+# robots.txt for Melin App
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://melin.app/sitemap.xml
