@@ -44,6 +44,7 @@ import { AlbumDetailPage } from './components/AlbumDetailPage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { SecurityModal } from './security';
 import { Plus, LogIn } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   // Dark mode
@@ -663,207 +664,316 @@ export default function App() {
           }}
         />
 
-        {/* VIEW 0: LANDING & LOGIN (SE DESLOGADO NA ROTA RAIZ) */}
-        {currentView === 'landing' && (
-          <AuthLandingView
-            onOpenAuth={() => setAuthModalOpen(true)}
-            onExplorePublicFeed={() => {
-              setCurrentView('community');
-              window.location.hash = '#feed';
-            }}
-            onOpenFAQ={() => {
-              setCurrentView('faq');
-              window.location.hash = '#faq';
-            }}
-            onOpenLegal={() => {
-              setCurrentView('privacy');
-              window.location.hash = '#termos';
-            }}
-          />
-        )}
-
-        {/* VIEW 1: MEU PERFIL PRÓPRIO (E SUB-PÁGINA DE ÁLBUM) */}
-        {currentView === 'profile' && (
-          <div className="p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full animate-in fade-in duration-150">
-            {/* SUB-PÁGINA DEDICADA DE ÁLBUM */}
-            {selectedAlbumId && albums.find((a) => a.id === selectedAlbumId) ? (
-              <AlbumDetailPage
-                album={albums.find((a) => a.id === selectedAlbumId)!}
-                posts={posts}
-                activeProfile={activeProfile}
-                onBack={() => setSelectedAlbumId(null)}
-                onOpenCreatePost={() => setCreateModalOpen(true)}
-                onLikePost={handleLikePost}
-                onRepostPost={handleRepostPost}
-                onOpenPinModal={setActiveDetailPost}
+        {/* VIEWS WITH SMOOTH MOTION TRANSITION */}
+        <AnimatePresence mode="wait">
+          {currentView === 'landing' && (
+            <motion.div
+              key="landing"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="w-full"
+            >
+              <AuthLandingView
+                onOpenAuth={() => setAuthModalOpen(true)}
+                onExplorePublicFeed={() => {
+                  setCurrentView('community');
+                  window.location.hash = '#feed';
+                }}
+                onOpenFAQ={() => {
+                  setCurrentView('faq');
+                  window.location.hash = '#faq';
+                }}
+                onOpenLegal={() => {
+                  setCurrentView('privacy');
+                  window.location.hash = '#termos';
+                }}
               />
-            ) : (
-              <>
-                {/* Breadcrumbs de Navegação */}
-                <Breadcrumbs
-                  items={[
-                    {
-                      label: 'Meu Perfil',
-                      onClick: () => {
-                        setActiveProfileTab('posts');
-                        setSelectedAlbumId(null);
-                      },
-                    },
-                    {
-                      label:
-                        activeProfileTab === 'posts'
-                          ? 'Publicações'
-                          : activeProfileTab === 'mural'
-                          ? 'Lembretes'
-                          : activeProfileTab === 'albums'
-                          ? 'Álbuns'
-                          : activeProfileTab === 'hobby'
-                          ? 'Hobby'
-                          : 'Widgets',
-                      active: true,
-                    },
-                  ]}
-                />
+            </motion.div>
+          )}
 
-                {/* Profile Header Card */}
-                <ProfileHeader
-                  profile={activeProfile}
-                  activeTab={activeProfileTab}
-                  onSelectTab={setActiveProfileTab}
-                  onUpdateProfile={handleUpdateProfile}
-                  postsCount={displayedPosts.length}
-                  notesCount={notes.filter((n) => n.targetProfileId === activeProfile.id).length}
-                  albumsCount={albums.length}
-                />
-
-                {/* TAB CONTENT */}
-                {activeProfileTab === 'posts' && (
-                  <div className="space-y-4 pt-1">
-                    <FeedMasonryOrTwitter
-                      posts={displayedPosts}
-                      layoutMode={activeProfile.layoutMode}
+          {currentView === 'profile' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full"
+            >
+              {/* SUB-PÁGINA DEDICADA DE ÁLBUM */}
+              <AnimatePresence mode="wait">
+                {selectedAlbumId && albums.find((a) => a.id === selectedAlbumId) ? (
+                  <motion.div
+                    key={`album-${selectedAlbumId}`}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <AlbumDetailPage
+                      album={albums.find((a) => a.id === selectedAlbumId)!}
+                      posts={posts}
                       activeProfile={activeProfile}
+                      onBack={() => setSelectedAlbumId(null)}
+                      onOpenCreatePost={() => setCreateModalOpen(true)}
                       onLikePost={handleLikePost}
                       onRepostPost={handleRepostPost}
                       onOpenPinModal={setActiveDetailPost}
-                      onOpenCreatePost={() => setCreateModalOpen(true)}
                     />
-                  </div>
-                )}
-
-                {activeProfileTab === 'mural' && (
-                  <div className="pt-1">
-                    <MuralLembretes
-                      notes={notes}
-                      activeProfile={activeProfile}
-                      currentViewerName={currentUser?.name || 'Amigo(a)'}
-                      onAddNote={handleAddNote}
-                      onReactNote={handleReactNote}
-                      onDeleteNote={handleDeleteNote}
-                      onTogglePin={handleTogglePinNote}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="profile-main-content"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-4"
+                  >
+                    {/* Breadcrumbs de Navegação */}
+                    <Breadcrumbs
+                      items={[
+                        {
+                          label: 'Meu Perfil',
+                          onClick: () => {
+                            setActiveProfileTab('posts');
+                            setSelectedAlbumId(null);
+                          },
+                        },
+                        {
+                          label:
+                            activeProfileTab === 'posts'
+                              ? 'Publicações'
+                              : activeProfileTab === 'mural'
+                              ? 'Lembretes'
+                              : activeProfileTab === 'albums'
+                              ? 'Álbuns'
+                              : activeProfileTab === 'hobby'
+                              ? 'Hobby'
+                              : 'Widgets',
+                          active: true,
+                        },
+                      ]}
                     />
-                  </div>
-                )}
 
-                {activeProfileTab === 'albums' && (
-                  <div className="pt-1">
-                    <AlbumPastasGrid
-                      albums={albums}
-                      activeProfile={activeProfile}
-                      selectedAlbumId={selectedAlbumId}
-                      onSelectAlbum={(id) => {
-                        setSelectedAlbumId(id);
-                      }}
-                      onCreateAlbum={handleCreateAlbum}
-                      onDeleteAlbum={handleDeleteAlbum}
-                      onUpdateAlbumCover={handleUpdateAlbumCover}
-                    />
-                  </div>
-                )}
-
-                {activeProfileTab === 'hobby' && (
-                  <div className="pt-1">
-                    <HobbySection
-                      currentTrack={currentTrack}
-                      onSetTrack={setCurrentTrack}
-                    />
-                  </div>
-                )}
-
-                {activeProfileTab === 'widgets' && (
-                  <div className="pt-1">
-                    <WidgetsDrawer
+                    {/* Profile Header Card */}
+                    <ProfileHeader
                       profile={activeProfile}
+                      activeTab={activeProfileTab}
+                      onSelectTab={setActiveProfileTab}
                       onUpdateProfile={handleUpdateProfile}
+                      postsCount={displayedPosts.length}
+                      notesCount={notes.filter((n) => n.targetProfileId === activeProfile.id).length}
+                      albumsCount={albums.length}
                     />
-                  </div>
+
+                    {/* TAB CONTENT WITH SUB-ANIMATION */}
+                    <AnimatePresence mode="wait">
+                      {activeProfileTab === 'posts' && (
+                        <motion.div
+                          key="tab-posts"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-4 pt-1"
+                        >
+                          <FeedMasonryOrTwitter
+                            posts={displayedPosts}
+                            layoutMode={activeProfile.layoutMode}
+                            activeProfile={activeProfile}
+                            onLikePost={handleLikePost}
+                            onRepostPost={handleRepostPost}
+                            onOpenPinModal={setActiveDetailPost}
+                            onOpenCreatePost={() => setCreateModalOpen(true)}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeProfileTab === 'mural' && (
+                        <motion.div
+                          key="tab-mural"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2 }}
+                          className="pt-1"
+                        >
+                          <MuralLembretes
+                            notes={notes}
+                            activeProfile={activeProfile}
+                            currentViewerName={currentUser?.name || 'Amigo(a)'}
+                            onAddNote={handleAddNote}
+                            onReactNote={handleReactNote}
+                            onDeleteNote={handleDeleteNote}
+                            onTogglePin={handleTogglePinNote}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeProfileTab === 'albums' && (
+                        <motion.div
+                          key="tab-albums"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2 }}
+                          className="pt-1"
+                        >
+                          <AlbumPastasGrid
+                            albums={albums}
+                            activeProfile={activeProfile}
+                            selectedAlbumId={selectedAlbumId}
+                            onSelectAlbum={(id) => {
+                              setSelectedAlbumId(id);
+                            }}
+                            onCreateAlbum={handleCreateAlbum}
+                            onDeleteAlbum={handleDeleteAlbum}
+                            onUpdateAlbumCover={handleUpdateAlbumCover}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeProfileTab === 'hobby' && (
+                        <motion.div
+                          key="tab-hobby"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2 }}
+                          className="pt-1"
+                        >
+                          <HobbySection
+                            currentTrack={currentTrack}
+                            onSetTrack={setCurrentTrack}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeProfileTab === 'widgets' && (
+                        <motion.div
+                          key="tab-widgets"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2 }}
+                          className="pt-1"
+                        >
+                          <WidgetsDrawer
+                            profile={activeProfile}
+                            onUpdateProfile={handleUpdateProfile}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
                 )}
-              </>
-            )}
-          </div>
-        )}
+              </AnimatePresence>
+            </motion.div>
+          )}
 
-        {/* VIEW 2: FEED COMUM COM A COMUNIDADE */}
-        {currentView === 'community' && (
-          <div className="p-4 sm:p-6 max-w-2xl mx-auto w-full animate-in fade-in duration-150">
-            <Breadcrumbs
-              items={[
-                { label: 'Feed Comum & Comunidade', active: true },
-              ]}
-            />
-            <CommunityFeed
-              posts={posts}
-              activeProfile={activeProfile}
-              onLikePost={handleLikePost}
-              onRepostPost={handleRepostPost}
-              onOpenPinModal={setActiveDetailPost}
-              onOpenCreatePost={() => {
-                if (!currentUser) setAuthModalOpen(true);
-                else setCreateModalOpen(true);
-              }}
-            />
-          </div>
-        )}
+          {currentView === 'community' && (
+            <motion.div
+              key="community"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="p-4 sm:p-6 max-w-2xl mx-auto w-full"
+            >
+              <Breadcrumbs
+                items={[
+                  { label: 'Feed Comum & Comunidade', active: true },
+                ]}
+              />
+              <CommunityFeed
+                posts={posts}
+                activeProfile={activeProfile}
+                onLikePost={handleLikePost}
+                onRepostPost={handleRepostPost}
+                onOpenPinModal={setActiveDetailPost}
+                onOpenCreatePost={() => {
+                  if (!currentUser) setAuthModalOpen(true);
+                  else setCreateModalOpen(true);
+                }}
+              />
+            </motion.div>
+          )}
 
-        {/* VIEW 3: CENTRAL DE DÚVIDAS & FAQ (5 PERGUNTAS) */}
-        {currentView === 'faq' && (
-          <FaqPage
-            onBack={() => setCurrentView(currentUser ? 'community' : 'landing')}
-            onGoProfile={() => setCurrentView('profile')}
-          />
-        )}
+          {currentView === 'faq' && (
+            <motion.div
+              key="faq"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="w-full"
+            >
+              <FaqPage
+                onBack={() => setCurrentView(currentUser ? 'community' : 'landing')}
+                onGoProfile={() => setCurrentView('profile')}
+              />
+            </motion.div>
+          )}
 
-        {/* VIEW 4: POLÍTICA DE PRIVACIDADE, TERMOS & COOKIES & REEMBOLSO */}
-        {currentView === 'privacy' && (
-          <PrivacyTermsPage
-            onBack={() => setCurrentView(currentUser ? 'community' : 'landing')}
-            onGoProfile={() => setCurrentView('profile')}
-          />
-        )}
+          {currentView === 'privacy' && (
+            <motion.div
+              key="privacy"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="w-full"
+            >
+              <PrivacyTermsPage
+                onBack={() => setCurrentView(currentUser ? 'community' : 'landing')}
+                onGoProfile={() => setCurrentView('profile')}
+              />
+            </motion.div>
+          )}
 
-        {/* VIEW 5: PÁGINA DE OBRIGADO (CONVERSÃO & FEEDBACK) */}
-        {currentView === 'thankYou' && (
-          <ThankYouPage
-            userName={currentUser?.name}
-            userHandle={currentUser?.handle}
-            onGoHome={() => {
-              setCurrentView('community');
-              window.location.hash = '#feed';
-            }}
-            onGoProfile={() => {
-              setCurrentView('profile');
-              window.location.hash = '#perfil';
-            }}
-          />
-        )}
+          {currentView === 'thankYou' && (
+            <motion.div
+              key="thankYou"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full"
+            >
+              <ThankYouPage
+                userName={currentUser?.name}
+                userHandle={currentUser?.handle}
+                onGoHome={() => {
+                  setCurrentView('community');
+                  window.location.hash = '#feed';
+                }}
+                onGoProfile={() => {
+                  setCurrentView('profile');
+                  window.location.hash = '#perfil';
+                }}
+              />
+            </motion.div>
+          )}
 
-        {/* VIEW 6: PÁGINA DE ERRO 404 AMIGÁVEL */}
-        {currentView === 'notFound' && (
-          <NotFoundPage
-            onGoHome={() => setCurrentView(currentUser ? 'profile' : 'landing')}
-            onGoCommunity={() => setCurrentView('community')}
-          />
-        )}
+          {currentView === 'notFound' && (
+            <motion.div
+              key="notFound"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="w-full"
+            >
+              <NotFoundPage
+                onGoHome={() => setCurrentView(currentUser ? 'profile' : 'landing')}
+                onGoCommunity={() => setCurrentView('community')}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Floating Action Button with Speech Prompt */}
